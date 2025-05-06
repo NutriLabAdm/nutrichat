@@ -1,0 +1,126 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body {
+    background-color: #f8f9fa;
+    padding-top: 2rem;
+}
+
+.auth-buttons {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+.user-info {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.user-name {
+    font-weight: 500;
+    color: #2c3e50;
+}
+.advice-container {
+    background-color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+.advice-title {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+.advice-text {
+    color: #34495e;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+.btn-custom {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+.btn-custom:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+    transform: translateY(-2px);
+}
+.btn-personal {
+    background-color: #2ecc71;
+    border-color: #2ecc71;
+}
+.btn-personal:hover {
+    background-color: #27ae60;
+    border-color: #27ae60;
+}
+.btn-google {
+    background-color: #fff;
+    color: #757575;
+    border: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.btn-google:hover {
+    background-color: #f8f9fa;
+    color: #757575;
+    border-color: #ddd;
+}
+.btn-group {
+    margin-bottom: 2rem;
+}
+.loading {
+    display: none;
+    text-align: center;
+    margin: 2rem 0;
+}
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+.home-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    text-decoration: none;
+    color: #3498db;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.home-link:hover {
+    color: #2980b9;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #f8f9fa;
+    padding: 1rem 0;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+}

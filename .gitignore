@@ -33,6 +33,13 @@ env/
 
 # Environment variables
 .env
+.env2
+.env copy
 
 # Logs
-*.log 
+*.log
+
+# Google Auth
+token.pickle
+credentials.json
+steady-triumph-20250428.json 
