@@ -371,6 +371,7 @@ async def get_public_advice(
         advice = "Извините, не удалось получить совет. Пожалуйста, попробуйте позже."
     
     return {"title": title_mapping[advice_type], "advice": advice}
+    return {"title": title_mapping[advice_type], "advice": advice}
 
 @app.get("/health")
 async def health_check():
