@@ -130,3 +130,65 @@ footer {
     padding: 1rem 0;
     box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
 }
+
+
+footer .btn-custom {
+    background-color: #3498db;
+    border-color: #3498db;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+footer .btn-custom:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+    transform: translateY(-2px);
+}
+
+
+div#chatContainer,  .chat-container {
+    display: flex;
+    flex-direction: column; /* Устанавливает вертикальное расположение элементов */
+    height: 78vh; /* или 100% если родитель уже ограничен */
+    padding: 10px;
+    box-sizing: border-box;
+    margin-bottom: 0px;
+}
+
+/* Обновление стилей для динамического вертикального размера истории чата */
+.chat-messages {
+    flex: 1 1 auto; /* Позволяет блоку занимать доступное пространство */
+    overflow-y: auto; /* Добавляет прокрутку по вертикали, если контент превышает высоту */
+    border: 2px solid #ccc;
+    padding: 10px;
+    font-size: 12px;
+    text-align: left;
+    background-color: #f9f9f9;
+    margin-top: 10px;
+    margin-bottom: 10px; /* Добавляет отступ снизу для блока с input и button */
+    max-height: calc(100vh - 20px); /* Устанавливает максимальную высоту с учетом отступов */
+}
+
+.input-group {
+    margin-top: auto; /* Прижимает блок с input и button к низу контейнера */
+}
+
+
+.user-message {
+    background-color: #e0f7fa00; /* Цвет фона для сообщений пользователя */
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 5px;
+    max-width: 80%;
+    align-self: flex-end; /* Выравнивает сообщение пользователя вправо */
+}
+.bot-message {
+    background-color: #ffffff; /* Цвет фона для сообщений бота */
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    max-width: 100%;
+    align-self: flex-start; /* Выравнивает сообщение бота влево */
+}

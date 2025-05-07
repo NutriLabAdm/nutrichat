@@ -43,3 +43,7 @@ env/
 token.pickle
 credentials.json
 steady-triumph-20250428.json 
+
+#copy
+*copy.*
+*~~.*

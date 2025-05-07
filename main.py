@@ -18,7 +18,7 @@ import base64
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import logging
-from database import get_db, User, UserProfile
+from database import get_db, User, UserProfile, ChatHistory
 from auth import (
     create_access_token,
     get_current_active_user,
@@ -29,6 +29,10 @@ from auth import (
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import httpx
+from fastapi import APIRouter
+import openai
+from openai_client import OpenAIClient
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +42,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Initialize FastAPI app
 app = FastAPI(title="NutriChat")
 
 # Configure CORS
@@ -193,46 +198,63 @@ async def google_auth():
         f"access_type=offline"
     )
 
+import logging
+
+# Configure logging for debugging
+logger = logging.getLogger("google_auth")
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 @app.get("/auth/google/callback")
 async def google_auth_callback(code: str, db: Session = Depends(get_db)):
-    async with httpx.AsyncClient() as client:
-        # Exchange code for tokens
-        token_response = await client.post(
-            "https://oauth2.googleapis.com/token",
-            data={
-                "code": code,
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
-                "redirect_uri": GOOGLE_REDIRECT_URI,
-                "grant_type": "authorization_code",
-            },
-        )
-        tokens = token_response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            # Exchange code for tokens
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                },
+            )
+            tokens = token_response.json()
+            logger.debug(f"Tokens received: {tokens}")
 
-        # Get user info
-        userinfo_response = await client.get(
-            "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {tokens['access_token']}"},
-        )
-        userinfo = userinfo_response.json()
+            # Get user info
+            userinfo_response = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            )
+            userinfo = userinfo_response.json()
+            logger.debug(f"User info received: {userinfo}")
 
-        # Create or update user
-        google_user_info = GoogleUserInfo(
-            email=userinfo["email"],
-            name=userinfo["name"],
-            picture=userinfo["picture"],
-            google_id=userinfo["id"]
-        )
-        user = create_or_update_user(db, google_user_info)
+            # Create or update user
+            google_user_info = GoogleUserInfo(
+                email=userinfo["email"],
+                name=userinfo["name"],
+                picture=userinfo["picture"],
+                google_id=userinfo["id"]
+            )
+            user = create_or_update_user(db, google_user_info)
 
-        # Create access token
-        access_token_expires = timedelta(minutes=30)
-        access_token = create_access_token(
-            data={"sub": user.email}, expires_delta=access_token_expires
-        )
+            # Create access token
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": user.email}, expires_delta=access_token_expires
+            )
+            logger.debug(f"Access token created: {access_token}")
 
-        # Redirect to home page with token as query parameter (optional)
-        return RedirectResponse(url=f"/?access_token={access_token}")
+            # Redirect to home page with token as query parameter (optional)
+            return RedirectResponse(url=f"/?access_token={access_token}")
+    except Exception as e:
+        logger.error(f"Error in Google auth callback: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Authentication failed")
 
 # Protected routes
 @app.get("/me", response_model=dict)
@@ -373,6 +395,21 @@ async def get_public_advice(
     return {"title": title_mapping[advice_type], "advice": advice}
     return {"title": title_mapping[advice_type], "advice": advice}
 
+@app.get("/advice/personal")
+async def get_personal_advice(prompt: str = None):
+    if not prompt:
+        raise HTTPException(status_code=400, detail="The 'prompt' query parameter is required.")
+    try:
+        # Send a request to OpenAI API
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=150
+        )
+        return {"advice": response.choices[0].text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
@@ -416,3 +453,105 @@ async def get_random_question():
     except Exception as e:
         logger.error(f"Error fetching random question: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch random question.")
+
+# Add a new route to render the page with the input field for the question
+@app.get("/ask", response_class=HTMLResponse)
+async def ask_page(request: Request):
+    return templates.TemplateResponse("ask.html", {"request": request})
+
+# Create a router for OpenAI-related endpoints
+router = APIRouter()
+
+# Load OpenAI API key from environment variables
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+print(f"OPENAI_API_KEY: {OPENAI_API_KEY}")
+
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+
+openai.api_key = OPENAI_API_KEY
+
+@router.post("/openai/for-you")
+async def openai_for_you(prompt: str):
+    try:
+        # Send a request to OpenAI API
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=150
+        )
+        return {"response": response.choices[0].text.strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
+
+# Include the router in the main app
+app.include_router(router, prefix="/api", tags=["OpenAI"])
+
+# Initialize OpenAI client
+openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+
+@app.get("/test-openai")
+async def test_openai():
+    return await openai_client.test_openai("Как дела")
+
+@app.get("/chat", response_class=HTMLResponse)
+async def chat_page(request: Request, current_user: User = Depends(get_current_active_user)):
+    return templates.TemplateResponse("chat.html", {"request": request, "user": current_user})
+
+# Define a router for OpenAI-related endpoints
+query_router = APIRouter()
+
+# Define a request model for OpenAI queries
+class OpenAIQueryRequest(BaseModel):
+    question: str
+
+# Dependency to initialize OpenAIClient
+async def get_openai_client():
+    api_key = OPENAI_API_KEY  # Use the actual API key from the environment
+    return OpenAIClient(api_key)
+
+@query_router.post("/openai/query")
+async def query_openai(
+    request: OpenAIQueryRequest,
+    openai_client: OpenAIClient = Depends(get_openai_client),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    try:
+        # Extract the question from the request
+        question = request.question
+        response = await openai_client.test_openai(question)
+        answer = response.get("full_response", "No response from OpenAI.")
+
+        # Save the chat history to the database
+        chat_history = ChatHistory(
+            user_id=current_user.id,
+            question=question,
+            answer=answer
+        )
+        db.add(chat_history)
+        db.commit()
+
+        return {"answer": answer}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Include the new router in the main app
+app.include_router(query_router, prefix="/api", tags=["OpenAI Query"])
+
+@app.get("/chat/history")
+async def get_chat_history(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Fetch the last 5 chat history records for the current user
+    history = db.query(ChatHistory).filter(ChatHistory.user_id == current_user.id).order_by(ChatHistory.timestamp.desc()).limit(5).all()
+    return [
+        {
+            "question": record.question,
+            "answer": record.answer,
+            "timestamp": record.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for record in history
+    ]

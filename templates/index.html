@@ -34,19 +34,11 @@
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="userDropdown">
                         <li><button class="dropdown-item" onclick="logout()">Выйти</button></li>
+                        <li><button class="btn btn-secondary" onclick="toggleDebug()">Показать/Скрыть отладку</button></li>
                     </ul>
                 </div>
 
                 <h1 class="text-center mb-4"><img src="static/logo_text.svg" width="250px"></h1>
-                <p class="text-center mb-4">Получите персональный совет по питанию и здоровью</p>
-                
-                <div class="btn-group d-flex justify-content-center mb-4">
-                    <button class="btn btn-custom me-2" onclick="getAdvice('food')">Питание</button>
-                    <button class="btn btn-custom me-2" onclick="getAdvice('activity')">Активность</button>
-                    <button class="btn btn-custom me-2" onclick="getAdvice('supplements')">БАДы</button>
-                    <button class="btn btn-custom" onclick="getAdvice('random')">Случайный</button>
-                </div>
-
                 <!-- Random Question Field -->
                 <div id="randomQuestionField" class="text-center mb-4" style="display: none;">
                     <p id="randomQuestionText" class="text-muted"></p>
@@ -54,10 +46,162 @@
 
                 <!-- Update For You Button to show random question -->
                 <div id="forYouButton" class="text-center mb-4" style="display: none;">
-                    <button class="btn btn-custom btn-personal" onclick="getPersonalAdvice(); showRandomQuestion();">
+                    <!-- <button class="btn btn-custom btn-personal" onclick="startChatWithOpenAI();">
                         Для вас
                     </button>
+
+                    <script>
+                        function startChatWithOpenAI() {
+                            const token = localStorage.getItem('token');
+                            if (!token) {
+                                alert('Пожалуйста, войдите в систему для начала чата с OpenAI.');
+                                return;
+                            }
+
+                            // Show the chat container
+                            const chatContainer = document.getElementById('chatContainer');
+                            chatContainer.style.display = 'block';
+                        }
+                    </script> -->
+
+                    <!-- Chat Container -->
+                    <div id="chatContainer" class="chat-container" >
+                        <div id="chatMessages" class="chat-messages">
+                            <!-- Messages will appear here -->
+                        </div>
+                        <div class="input-group mt-3">
+                            <input type="text" id="chatInput" class="form-control" value="Выведи в таблице 3 продукта на завтрак с БЖУ" placeholder="Введите сообщение...">
+                            <button class="btn btn-primary" onclick="sendMessage()">Спросить</button>
+                        </div>
+                    </div>
+                    <div class="btn-group d-flex justify-content-center mb-4">
+                        <button class="btn btn-custom me-2" onclick="getAdvice('food')">Питание</button>
+                        <button class="btn btn-custom me-2" onclick="getAdvice('activity')">Активность</button>
+                        <button class="btn btn-custom me-2" onclick="getAdvice('supplements')">БАДы</button>
+                        <button class="btn btn-custom" onclick="getAdvice('random')">Случайный</button>
+                    </div>
                 </div>
+
+
+                <div id="debugContainer" class="debug-container" style="display: none; margin-top: 20px;">
+                    <h5>Отладочная информация</h5>
+                    <pre id="debugOutput" style="background-color: #f8f9fa; border: 1px solid #ccc; padding: 10px; max-height: 200px; overflow-y: auto;"></pre>
+                </div>
+
+
+                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+                <script>
+                    function toggleDebug() {
+                        const debugContainer = document.getElementById('debugContainer');
+                        debugContainer.style.display = debugContainer.style.display === 'none' ? 'block' : 'none';
+                    }
+
+                    function logDebugInfo(prompt) {
+                        const debugOutput = document.getElementById('debugOutput');
+                        const timestamp = new Date().toLocaleTimeString();
+                        debugOutput.textContent += `[${timestamp}] Prompt: ${prompt}\n`;
+                        debugOutput.scrollTop = debugOutput.scrollHeight;
+                    }
+
+                    function sendMessage() {
+                        const chatInput = document.getElementById('chatInput');
+                        const sendButton = document.querySelector('.btn-primary');
+                        const message = chatInput.value.trim();
+                        if (!message) {
+                            alert('Пожалуйста, введите сообщение.');
+                            return;
+                        }
+
+                        // Деактивируем кнопку и добавляем спиннер
+                        sendButton.disabled = true;
+                        sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
+
+                        const chatMessages = document.getElementById('chatMessages');
+                        const messageElement = document.createElement('div');
+                        messageElement.className = 'message user-message';
+                        messageElement.textContent = message;
+                        chatMessages.appendChild(messageElement);
+
+                        chatInput.value = '';
+
+                        // Fetch response from OpenAI via backend
+                        const token = localStorage.getItem('token');
+                        fetch('/api/openai/query', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ question: message })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            const responseElement = document.createElement('div');
+                            responseElement.className = 'message bot-message';
+
+                            // Render response as Markdown using marked.js
+                            const markdownContent = data.answer || 'Ошибка получения ответа от OpenAI.';
+                            responseElement.innerHTML = marked.parse(markdownContent);
+
+                            chatMessages.appendChild(responseElement);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            const errorElement = document.createElement('div');
+                            errorElement.className = 'message bot-message';
+                            errorElement.textContent = 'Произошла ошибка. Пожалуйста, попробуйте позже.';
+                            chatMessages.appendChild(errorElement);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        })
+                        .finally(() => {
+                            // Активируем кнопку и возвращаем исходный текст
+                            sendButton.disabled = false;
+                            sendButton.innerHTML = 'Спросить';
+                        });
+                    }
+
+                    function loadChatHistory() {
+                        const token = localStorage.getItem('token');
+                        if (!token) {
+                            console.error('No token found. Cannot load chat history.');
+                            return;
+                        }
+
+                        fetch('/chat/history', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to fetch chat history');
+                            }
+                            return response.json();
+                        })
+                        .then(history => {
+                            const chatMessages = document.getElementById('chatMessages');
+                            chatMessages.innerHTML = ''; // Clear existing messages
+
+                            history.forEach(record => {
+                                const messageElement = document.createElement('div');
+                                messageElement.className = 'message user-message';
+                                messageElement.innerHTML = `<span style="color: gray;">${record.timestamp}</span> <em>${record.question}</em>`;
+                                chatMessages.appendChild(messageElement);
+
+                                const responseElement = document.createElement('div');
+                                responseElement.className = 'message bot-message';
+                                responseElement.innerHTML = marked.parse(record.answer);
+                                chatMessages.appendChild(responseElement);
+                            });
+
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        })
+                        .catch(error => {
+                            console.error('Error loading chat history:', error);
+                        });
+                    }
+                </script>
 
                 <!-- Text Input and Ask Button -->
                 <div id="openAIQuery" class="mb-4" style="display: none;">
@@ -139,18 +283,14 @@
             document.getElementById('authButtons').style.display = 'none';
             const userInfo = document.getElementById('userInfo');
             userInfo.style.display = 'block';
-            // Debugging: Log the avatar URL to ensure it's correct
-            console.log('Avatar URL:', userData.picture);
             if (userData.picture) {
                 document.getElementById('userAvatar').src = userData.picture;
-            } else {
-                console.error('User avatar URL is missing or invalid');
             }
             document.getElementById('userName').textContent = userData.name;
             document.getElementById('forYouButton').style.display = 'block';
 
-            // Display session parameters
-            console.log('Session Parameters:', userData);
+            // Load chat history
+            loadChatHistory();
         }
 
         // Show auth buttons
@@ -214,6 +354,7 @@
             const loading = document.querySelector('.loading');
             const adviceTitle = document.getElementById('adviceTitle');
             const adviceText = document.getElementById('adviceText');
+            const chatInput = document.getElementById('chatInput');
 
             loading.style.display = 'block';
             adviceContainer.style.display = 'none';
@@ -232,6 +373,11 @@
                 adviceText.textContent = data.advice;
                 loading.style.display = 'none';
                 adviceContainer.style.display = 'block';
+
+                // Помещаем текст совета в поле chatInput
+                if (data.advice) {
+                    chatInput.value = data.advice;
+                }
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -257,7 +403,7 @@
                 return;
             }
 
-            fetch('/openai/query', {
+            fetch('/api/openai/query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
