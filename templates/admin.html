@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Администрирование{% endblock %}
+{% block title %}{{ '# Администрирование' | safe }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
@@ -34,8 +34,7 @@
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Пользователь и Дата</th>
+                    <th>Пользователь<br>[ID] Дата</th>
                     <th>Вопрос</th>
                     <th>Ответ</th>
                     <th>Действия</th>
@@ -66,7 +65,10 @@
     </div>
 </div>
 
+<div id="markdownPopup" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; padding: 10px; max-width: auto; max-height: auto; font-size: 12px; overflow-y: auto; text-align: left;"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const links = document.querySelectorAll('.nav-link');
@@ -91,6 +93,31 @@
 
         loadUsersForFilter();
         loadChatHistory();
+
+        const markdownPopup = document.getElementById('markdownPopup');
+
+        document.addEventListener('mousemove', (event) => {
+            if (markdownPopup.style.display === 'block') {
+                markdownPopup.style.top = `${event.clientY + 10}px`;
+                markdownPopup.style.left = `${event.clientX + 10}px`;
+            }
+        });
+
+        const tableBody = document.getElementById('chatHistoryTableBody');
+        tableBody.addEventListener('mouseover', (event) => {
+            const target = event.target;
+            if (target && target.dataset.markdown) {
+                markdownPopup.innerHTML = marked.parse(target.dataset.markdown);
+                markdownPopup.style.display = 'block';
+            }
+        });
+
+        tableBody.addEventListener('mouseout', (event) => {
+            const target = event.target;
+            if (target && target.dataset.markdown) {
+                markdownPopup.style.display = 'none';
+            }
+        });
     });
 
     async function loadUsersForFilter() {
@@ -128,11 +155,11 @@
                 const row = document.createElement('tr');
 
                 row.innerHTML = `
-                    <td>${chat.id}</td>
-                    <td>${chat.user_email}<br>${new Date(chat.timestamp).toLocaleString()}</td>
-                    <td>${chat.question}</td>
-                    <td style="font-size: small; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${chat.answer}">
-                        ${chat.answer.substring(0, 50)}...
+                    <td style="font-size: small; max-width: 90px;" data-markdown="${chat.user_email}<br>[${chat.id}] ${new Date(chat.timestamp).toLocaleString()}">${chat.user_email}<br>[${chat.id}] ${new Date(chat.timestamp).toLocaleString()}</td>
+                    <td style="font-size: small; max-width: 250px;" data-markdown="${chat.question}">${chat.question}</td>
+                    <td style="font-size: small; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 450px; max-height: auto; cursor: pointer;" 
+                        data-markdown="${chat.answer}">
+                        ${chat.answer.substring(0, 80)}...
                     </td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editChat(${chat.id})" title="Редактировать">
@@ -191,6 +218,21 @@
         }
     }
 </script>
+
+<style>
+    .custom-tooltip {
+        margin-left: -100px;
+        overflow-y: auto;
+        white-space: normal;
+    }
+
+    .tooltip-inner {
+        text-align: left; /* Ensure text is aligned to the left */
+        max-width: 800px; /* Set the width for the tooltip */
+        max-height: 1000px; /* Set the height for the tooltip */
+        overflow-y: auto; /* Enable scrolling for overflow */
+    }
+</style>
 
 <!-- Include Bootstrap Icons for button icons -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
