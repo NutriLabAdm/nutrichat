@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-print ("111")
 
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,7 +65,7 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8081/auth/google/callback")
 
 # Debugging: Print the GOOGLE_CLIENT_ID to verify it is loaded correctly
-print(f"GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID}")
+print(f"******** GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID[:10]}")
 
 # Google Sheets setup
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -80,7 +79,7 @@ def get_google_credentials():
         
         # Print the first 100 characters of the JSON for debugging
         print("\n=== DEBUG: GOOGLE_CREDENTIALS_JSON content ===")
-        print(credentials_json[:100])
+        print(credentials_json[:50])
         print("...")
         print("===========================================\n")
         
@@ -465,7 +464,7 @@ router = APIRouter()
 # Load OpenAI API key from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-print(f"OPENAI_API_KEY: {OPENAI_API_KEY}")
+print(f" ******* OPENAI_API_KEY: {OPENAI_API_KEY[:10]}")
 
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
