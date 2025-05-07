@@ -100,8 +100,8 @@ body {
     margin: 2rem 0;
 }
 .spinner-border {
-    width: 3rem;
-    height: 3rem;
+    width: 18px;
+    height: 18px;
 }
 .home-link {
     position: absolute;

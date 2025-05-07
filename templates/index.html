@@ -35,6 +35,8 @@
                     <ul class="dropdown-menu" aria-labelledby="userDropdown">
                         <li><button class="dropdown-item" onclick="logout()">Выйти</button></li>
                         <li><button class="btn btn-secondary" onclick="toggleDebug()">Показать/Скрыть отладку</button></li>
+                        <!-- Add admin menu item -->
+                        <li id="adminMenu" style="display: none;"><a class="dropdown-item" href="/admin">Управление</a></li>
                     </ul>
                 </div>
 
@@ -201,6 +203,27 @@
                             console.error('Error loading chat history:', error);
                         });
                     }
+
+                    // Show admin menu if user is admin
+                    function showAdminMenu(isAdmin) {
+                        const adminMenu = document.getElementById('adminMenu');
+                        if (isAdmin) {
+                            adminMenu.style.display = 'block';
+                        }
+                    }
+
+                    // Example: Call this function after fetching user data
+                    // Replace `userData.isAdmin` with the actual property from your backend
+                    fetch('/me', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(userData => {
+                        showAdminMenu(userData.is_admin);
+                    })
+                    .catch(error => console.error('Error fetching user data:', error));
                 </script>
 
                 <!-- Text Input and Ask Button -->

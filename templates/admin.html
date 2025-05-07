@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Администрирование{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Администрирование</h1>
+    <nav class="nav nav-pills nav-fill mt-4">
+        <a class="nav-link active" href="/admin/chat_history">Управление Историей Чата</a>
+        <a class="nav-link" href="/admin/users">Управление Пользователями</a>
+    </nav>
+    <div id="adminContent" class="mt-4">
+        <!-- Контент будет загружаться динамически -->
+    </div>
+
+    <div id="chatHistorySection" class="mt-4" style="display: none;">
+        <h2>Управление Историей Чата</h2>
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <label for="userFilter" class="form-label">Фильтр по пользователю:</label>
+                <select id="userFilter" class="form-select" onchange="loadChatHistory()">
+                    <option value="">Все пользователи</option>
+                    <!-- Динамически добавляемые пользователи -->
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Сортировка:</label>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" onclick="loadChatHistory('asc')">По возрастанию</button>
+                    <button class="btn btn-outline-primary" onclick="loadChatHistory('desc')">По убыванию</button>
+                </div>
+            </div>
+        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Пользователь</th>
+                    <th>Вопрос</th>
+                    <th>Ответ</th>
+                    <th>Дата</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="chatHistoryTableBody">
+                <!-- Данные будут загружаться динамически -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="usersSection" class="mt-4" style="display: none;">
+        <h2>Управление Пользователями</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Имя</th>
+                    <th>Администратор</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody">
+                <!-- Данные будут загружаться динамически -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const links = document.querySelectorAll('.nav-link');
+        links.forEach(link => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                links.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+
+                const url = link.getAttribute('href');
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        document.getElementById('adminContent').innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error loading admin content:', error);
+                    });
+            });
+        });
+
+        const chatHistoryLink = document.querySelector('a[href="/admin/chat_history"]');
+        chatHistoryLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            document.getElementById('chatHistorySection').style.display = 'block';
+            loadChatHistory();
+        });
+
+        const usersLink = document.querySelector('a[href="/admin/users"]');
+        usersLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            document.getElementById('usersSection').style.display = 'block';
+            loadUsers();
+        });
+
+        loadUsersForFilter();
+        loadChatHistory();
+    });
+
+    async function loadUsersForFilter() {
+        const response = await fetch('/admin/users');
+        const users = await response.json();
+
+        const userFilter = document.getElementById('userFilter');
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.name || user.email;
+            userFilter.appendChild(option);
+        });
+    }
+
+    async function loadChatHistory(sortOrder = 'desc') {
+        const userId = document.getElementById('userFilter').value;
+        const url = new URL('/admin/chat_history', window.location.origin);
+        if (userId) url.searchParams.append('user_id', userId);
+        url.searchParams.append('sort_order', sortOrder);
+
+        const response = await fetch(url);
+        const chatHistory = await response.json();
+
+        const tableBody = document.getElementById('chatHistoryTableBody');
+        tableBody.innerHTML = '';
+
+        chatHistory.forEach(chat => {
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+                <td>${chat.id}</td>
+                <td>${chat.user_id}</td>
+                <td>${chat.question}</td>
+                <td>${chat.answer}</td>
+                <td>${new Date(chat.timestamp).toLocaleString()}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editChat(${chat.id})">Редактировать</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteChat(${chat.id})">Удалить</button>
+                </td>
+            `;
+
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function deleteChat(chatId) {
+        if (confirm('Вы уверены, что хотите удалить эту запись?')) {
+            await fetch(`/admin/chat_history/${chatId}`, { method: 'DELETE' });
+            loadChatHistory();
+        }
+    }
+
+    async function loadUsers() {
+        const response = await fetch('/admin/users');
+        const users = await response.json();
+
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '';
+
+        users.forEach(user => {
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+                <td>${user.id}</td>
+                <td>${user.email}</td>
+                <td>${user.name}</td>
+                <td>${user.is_admin ? 'Да' : 'Нет'}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})">Редактировать</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">Удалить</button>
+                </td>
+            `;
+
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function deleteUser(userId) {
+        if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+            await fetch(`/admin/users/${userId}`, { method: 'DELETE' });
+            loadUsers();
+        }
+    }
+</script>
+{% endblock %}

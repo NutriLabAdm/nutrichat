@@ -262,7 +262,8 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
         "email": current_user.email,
         "name": current_user.name,
         "picture": current_user.picture,
-        "is_active": current_user.is_active
+        "is_active": current_user.is_active,
+        "is_admin": current_user.is_admin
     }
 
 
@@ -554,3 +555,66 @@ async def get_chat_history(
         }
         for record in history
     ]
+
+@app.get("/admin/users")
+async def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [
+        {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "is_admin": user.is_admin
+        }
+        for user in users
+    ]
+
+@app.delete("/admin/users/{user_id}")
+async def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"message": "User deleted successfully"}
+
+@app.get("/admin/chat_history")
+async def get_chat_history(
+    user_id: int = None,  # Optional filter by user_id
+    sort_order: str = "desc",  # Sort order: "asc" or "desc"
+    db: Session = Depends(get_db)
+):
+    query = db.query(ChatHistory)
+
+    if user_id:
+        query = query.filter(ChatHistory.user_id == user_id)
+
+    if sort_order == "asc":
+        query = query.order_by(ChatHistory.timestamp.asc())
+    else:
+        query = query.order_by(ChatHistory.timestamp.desc())
+
+    chat_history = query.all()
+    return [
+        {
+            "id": chat.id,
+            "user_id": chat.user_id,
+            "question": chat.question,
+            "answer": chat.answer,
+            "timestamp": chat.timestamp
+        }
+        for chat in chat_history
+    ]
+
+@app.delete("/admin/chat_history/{chat_id}")
+async def delete_chat(chat_id: int, db: Session = Depends(get_db)):
+    chat = db.query(ChatHistory).filter(ChatHistory.id == chat_id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat history not found")
+    db.delete(chat)
+    db.commit()
+    return {"message": "Chat history deleted successfully"}
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
