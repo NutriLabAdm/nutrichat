@@ -35,10 +35,9 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Пользователь</th>
+                    <th>Пользователь и Дата</th>
                     <th>Вопрос</th>
                     <th>Ответ</th>
-                    <th>Дата</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -67,39 +66,27 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const links = document.querySelectorAll('.nav-link');
         links.forEach(link => {
             link.addEventListener('click', (event) => {
-                event.preventDefault();
+                event.preventDefault(); // Prevent default link behavior
                 links.forEach(l => l.classList.remove('active'));
                 link.classList.add('active');
 
                 const url = link.getAttribute('href');
-                fetch(url)
-                    .then(response => response.text())
-                    .then(html => {
-                        document.getElementById('adminContent').innerHTML = html;
-                    })
-                    .catch(error => {
-                        console.error('Error loading admin content:', error);
-                    });
+                if (url === '/admin/chat_history') {
+                    document.getElementById('chatHistorySection').style.display = 'block';
+                    document.getElementById('usersSection').style.display = 'none';
+                    loadChatHistory();
+                } else if (url === '/admin/users') {
+                    document.getElementById('usersSection').style.display = 'block';
+                    document.getElementById('chatHistorySection').style.display = 'none';
+                    loadUsers();
+                }
             });
-        });
-
-        const chatHistoryLink = document.querySelector('a[href="/admin/chat_history"]');
-        chatHistoryLink.addEventListener('click', (event) => {
-            event.preventDefault();
-            document.getElementById('chatHistorySection').style.display = 'block';
-            loadChatHistory();
-        });
-
-        const usersLink = document.querySelector('a[href="/admin/users"]');
-        usersLink.addEventListener('click', (event) => {
-            event.preventDefault();
-            document.getElementById('usersSection').style.display = 'block';
-            loadUsers();
         });
 
         loadUsersForFilter();
@@ -111,6 +98,7 @@
         const users = await response.json();
 
         const userFilter = document.getElementById('userFilter');
+        userFilter.innerHTML = '<option value="">Все пользователи</option>';
         users.forEach(user => {
             const option = document.createElement('option');
             option.value = user.id;
@@ -125,29 +113,43 @@
         if (userId) url.searchParams.append('user_id', userId);
         url.searchParams.append('sort_order', sortOrder);
 
-        const response = await fetch(url);
-        const chatHistory = await response.json();
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-        const tableBody = document.getElementById('chatHistoryTableBody');
-        tableBody.innerHTML = '';
+            const chatHistory = await response.json();
 
-        chatHistory.forEach(chat => {
-            const row = document.createElement('tr');
+            const tableBody = document.getElementById('chatHistoryTableBody');
+            tableBody.innerHTML = '';
 
-            row.innerHTML = `
-                <td>${chat.id}</td>
-                <td>${chat.user_id}</td>
-                <td>${chat.question}</td>
-                <td>${chat.answer}</td>
-                <td>${new Date(chat.timestamp).toLocaleString()}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editChat(${chat.id})">Редактировать</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteChat(${chat.id})">Удалить</button>
-                </td>
-            `;
+            chatHistory.forEach(chat => {
+                const row = document.createElement('tr');
 
-            tableBody.appendChild(row);
-        });
+                row.innerHTML = `
+                    <td>${chat.id}</td>
+                    <td>${chat.user_email}<br>${new Date(chat.timestamp).toLocaleString()}</td>
+                    <td>${chat.question}</td>
+                    <td style="font-size: small; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;" title="${chat.answer}">
+                        ${chat.answer.substring(0, 50)}...
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editChat(${chat.id})" title="Редактировать">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteChat(${chat.id})" title="Удалить">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+            alert('Failed to load chat history. Please try again later.');
+        }
     }
 
     async function deleteChat(chatId) {
@@ -189,4 +191,7 @@
         }
     }
 </script>
+
+<!-- Include Bootstrap Icons for button icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 {% endblock %}

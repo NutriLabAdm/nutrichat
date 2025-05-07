@@ -32,6 +32,8 @@ from fastapi import APIRouter
 import openai
 from openai_client import OpenAIClient
 from pydantic import BaseModel
+from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.authentication import AuthenticationBackend, SimpleUser, AuthCredentials
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +42,16 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Additional logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
 
 # Initialize FastAPI app
 app = FastAPI(title="NutriChat")
@@ -52,6 +64,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Define a simple authentication backend
+class SimpleAuthBackend(AuthenticationBackend):
+    async def authenticate(self, conn):
+        # Example: Always return an authenticated user
+        return AuthCredentials(["authenticated"]), SimpleUser("test_user")
+
+# Add AuthenticationMiddleware to the app
+app.add_middleware(AuthenticationMiddleware, backend=SimpleAuthBackend())
 
 # Mount the static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -584,24 +605,30 @@ async def get_chat_history(
     sort_order: str = "desc",  # Sort order: "asc" or "desc"
     db: Session = Depends(get_db)
 ):
-    query = db.query(ChatHistory)
+    logging.info("Fetching chat history...")
+    query = db.query(ChatHistory, User.email).join(User, ChatHistory.user_id == User.id)
 
     if user_id:
+        logging.info(f"Filtering chat history by user_id: {user_id}")
         query = query.filter(ChatHistory.user_id == user_id)
 
     if sort_order == "asc":
+        logging.info("Sorting chat history in ascending order.")
         query = query.order_by(ChatHistory.timestamp.asc())
     else:
+        logging.info("Sorting chat history in descending order.")
         query = query.order_by(ChatHistory.timestamp.desc())
 
     chat_history = query.all()
+    logging.info(f"Fetched {len(chat_history)} chat history records.")
+
     return [
         {
-            "id": chat.id,
-            "user_id": chat.user_id,
-            "question": chat.question,
-            "answer": chat.answer,
-            "timestamp": chat.timestamp
+            "id": chat.ChatHistory.id,
+            "user_email": chat.email,
+            "question": chat.ChatHistory.question,
+            "answer": chat.ChatHistory.answer,
+            "timestamp": chat.ChatHistory.timestamp
         }
         for chat in chat_history
     ]
@@ -617,4 +644,9 @@ async def delete_chat(chat_id: int, db: Session = Depends(get_db)):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    try:
+        logging.info("Accessing the admin page.")
+        return templates.TemplateResponse("admin.html", {"request": request})
+    except Exception as e:
+        logging.error(f"Error in /admin route: {e}")
+        raise e

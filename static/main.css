@@ -165,7 +165,7 @@ div#chatContainer,  .chat-container {
     padding: 10px;
     font-size: 12px;
     text-align: left;
-    background-color: #f9f9f9;
+    background-color: #e9ffed;
     margin-top: 10px;
     margin-bottom: 10px; /* Добавляет отступ снизу для блока с input и button */
     max-height: calc(100vh - 20px); /* Устанавливает максимальную высоту с учетом отступов */
